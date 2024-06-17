@@ -1,0 +1,13 @@
+RewriteEngine On
+RewriteBase /helper2.0/
+
+# Rewrite rule to handle /c/XX
+RewriteRule ^c/([0-9]+)$ chapter/?id=$1 [L,QSA]
+# Rewrite rule to handle /q/XX
+RewriteRule ^q/([0-9]+)$ question/?id=$1 [L,QSA] 
+# Rewrite rule to handle /r/XX
+RewriteRule ^r/([0-9]+)$ relatedquestion/?id=$1 [L,QSA]
+# Rewrite rule to handle /s/XX
+RewriteRule ^s/([0-9]+)$ subject/?id=$1 [L,QSA]
+# Rewrite rule to handle /category/XX
+RewriteRule ^category/([0-9]+)$ category/?id=$1 [L,QSA]
