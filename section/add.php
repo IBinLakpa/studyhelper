@@ -32,10 +32,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <title>Add Section</title>
-    <link rel="stylesheet" href="../css/normalize.css"> 
+    <link rel="stylesheet" href="../css/normalize.css">
     <link rel="stylesheet" href="../css/skeleton.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/css/froala_editor.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/css/froala_style.min.css">
+    <style>
+        .fr-wrapper {
+            min-height: 200px !important;
+        }
+    </style>
 </head>
 <body>
     <?php
@@ -73,16 +79,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         require '../essentials/footer.php';
     ?>
 </body>
-<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="../essentials/script.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/js/froala_editor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/js/languages/en.js"></script>
 <script>
-    const quill = new Quill('#editor', {
-        modules: {
-    toolbar: true,
-  },
-  placeholder: 'Write a subchapter...',
-  theme: 'snow', // or 'bubble'
-});
+    $(document).ready(function() {
+        $('#editor').froalaEditor({
+            toolbarButtons: [
+                'bold', 'italic', 'underline', 'strikeThrough', '|',
+                'fontFamily', 'fontSize', 'color', '|',
+                'align', 'formatOL', 'formatUL', '|',
+                'insertLink', 'insertImage', 'insertVideo', 'insertFile', 'insertTable', '|',
+                'html'
+            ],
+            heightMin: 200,
+            iconsTemplate: 'font_awesome_5',
+            htmlExecuteScripts: false
+        });
+    });
 </script>
 </html>

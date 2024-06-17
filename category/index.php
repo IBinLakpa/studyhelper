@@ -62,7 +62,7 @@ if (isset($_GET['id'])) {
             <ul>
                 <?php foreach ($subjects as $subject): ?>
                     <li>
-                        <a href="../subject/index.php?id=<?php echo $subject['id']; ?>">
+                        <a href="../s/<?php echo $subject['id']; ?>">
                             <?php echo htmlspecialchars($subject['name']); ?>
                         </a>
                     </li>
@@ -73,7 +73,7 @@ if (isset($_GET['id'])) {
             <ul>
                 <?php foreach ($categories as $category): ?>
                     <li>
-                        <a href="index.php?id=<?php echo $category['id']; ?>">
+                        <a href="../category/<?php echo $category['id']; ?>">
                             <?php echo htmlspecialchars($category['name']); ?>
                         </a>
                     </li>

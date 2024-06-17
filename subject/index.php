@@ -53,8 +53,8 @@ $category = $stmt->fetch(PDO::FETCH_ASSOC);
         <?php echo htmlspecialchars($subject['name']); ?>
         <h1>Subject: <?php echo htmlspecialchars($subject['name']); ?></h1>
         <hr>
-        <h2>Credit: <?php echo htmlspecialchars($subject['credit']); ?></h2>
-        <h2>Chapters:</h2>
+        <span style="text-align:right;display: block;">Credit: <?php echo htmlspecialchars($subject['credit']); ?></span>
+        <h3>Table of Content:</h3>
         <div class="toc">
             <ul>
                 <?php foreach ($chapters as $chapter): ?>
@@ -70,12 +70,12 @@ $category = $stmt->fetch(PDO::FETCH_ASSOC);
             <?php foreach ($chapters as $chapter): ?>
                 <div class="chapter" id="chapter_<?php echo $chapter['id']; ?>">
                     <h3>
-                        <a href="../chapter/?id=<?php echo htmlspecialchars($chapter['id']); ?>">
+                        <img src="../images/arrow.png" class="toggle" onclick="toggleDisplay('<?php echo 'chapter_intro_'.htmlspecialchars($chapter['id']); ?>',this)">
+                        <a href="../c/<?php echo htmlspecialchars($chapter['id']); ?>">
                             <?php echo htmlspecialchars($chapter['order_no']); ?>. <?php echo htmlspecialchars($chapter['name']); ?>
                         </a>
-                        <button onclick="toggleDisplay('<?php echo 'chapter_intro_'.htmlspecialchars($chapter['order_no']); ?>')">Toggle</button>
                     </h3>
-                    <div class="spoiler spoiler_content" id="<?php echo 'chapter_intro_'.htmlspecialchars($chapter['order_no']); ?>">
+                    <div class="spoiler spoiler_content" id="<?php echo 'chapter_intro_'.htmlspecialchars($chapter['id']); ?>">
                         <div><?php echo htmlspecialchars($chapter['intro']); ?></div>
                     </div>
                 </div>
