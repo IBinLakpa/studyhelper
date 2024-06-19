@@ -48,6 +48,34 @@ $category = $stmt->fetch(PDO::FETCH_ASSOC);
     <title>Chapter <?php echo htmlspecialchars($chapter['order_no']); ?>: <?php echo htmlspecialchars($chapter['name']); ?></title>
     <link rel="stylesheet" href="../css/normalize.css?2">
     <link rel="stylesheet" href="../css/skeleton.css?33">
+    <style>
+        /* styles.css */
+summary {
+    cursor: pointer;
+    user-select: none;
+    list-style:none;
+    display: flex;
+    justify-content: space-between;
+}
+
+summary::after {
+    content: '▼';
+    position: static;
+    transition: transform 400ms;
+    height: fit-content;
+}
+
+.rotated::after {
+    transform: rotate(-180deg);
+}
+summary *{
+    display: inline-block;
+    height: fit-content;
+    margin: 0;
+}
+
+
+    </style>
     <script src="https://cdn.jsdelivr.net/gh/jbowyersmith/bbcode.js/bbcode.js"></script>
     <script src="../essentials/view.js"></script>
     <script id="MathJax-script" async src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
@@ -57,8 +85,8 @@ $category = $stmt->fetch(PDO::FETCH_ASSOC);
 <body>
     <?php require '../essentials/header.php'; ?>
     <div class="content">
-        <a href="../category/index.php?id=<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></a> >>
-        <a href="../subject/index.php?id=<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></a> >>
+        <a href="../category/<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></a> >>
+        <a href="../s/<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></a> >>
         <?php echo htmlspecialchars($chapter['name']); ?>
         <hr>
         <h1>Chapter <?php echo htmlspecialchars($chapter['order_no']); ?>: <?php echo htmlspecialchars($chapter['name']); ?></h1>
@@ -84,20 +112,23 @@ $category = $stmt->fetch(PDO::FETCH_ASSOC);
         </div>
         <?php if (count($sections) > 0): ?>
             <?php foreach ($sections as $section): ?>
-                <div class="section" id="section_<?php echo $section['id']; ?>">
-                    <hr>
-                    <h3>
-                        <img src="../images/arrow.png" class="toggle" onclick="toggleDisplay('<?php echo 'Section_body'.htmlspecialchars($section['id']); ?>',this)">
-                        <?php echo htmlspecialchars($chapter['order_no']) . '.' . htmlspecialchars($section['order_no']); ?> <?php echo htmlspecialchars($section['name']); ?>
-                    </h3>
-                    
-                    <div id="<?php echo 'Section_body'.htmlspecialchars($section['id']); ?>" class="spoiler">
-                        <p class="bbcode">
+                <hr>
+                <details class="section" id="section_<?php echo $section['id']; ?>">
+                    <summary>
+                        <span>
+                            <h4>
+                                <?php echo htmlspecialchars($chapter['order_no']) . '.' . htmlspecialchars($section['order_no']); ?> 
+                            </h4>
+                            <h4>
+                                <?php echo htmlspecialchars($section['name']); ?>
+                            </h4>
+                        </span>
+                    </summary>
+                    <div class="content">
                             <?php echo htmlspecialchars($section['body']); ?>
-                        </p>
                         <a style="text-align:right;display: block;"href="../relatedquestion/?id=<?php echo $section['id']; ?>">Related Questions</a>
                     </div>
-                </div>
+                </details>
             <?php endforeach; ?>
         <?php else: ?>
             <p>No sections available for this chapter.</p>
