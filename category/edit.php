@@ -1,30 +1,39 @@
 <?php
-// category/edit.php
-require '../essentials/db.php';
-require '../essentials/editor_access.php';
+// category/edit.php?id=XX
+// or category/XX/edit
 
-// Fetch all categories
-$stmt = $pdo->query("SELECT id, name FROM Category ORDER BY name");
-$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+require '../essentials/db_access.php';
+require '../essentials/access_check.php';
+require '../essentials/admin_access.php';
 
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+// Fetch category
+$stmt = $pdo->prepare("SELECT * FROM category WHERE id = ?");
+$stmt->execute([$id]);
+$category = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Check if category exists
+if (!$category) {
+    header('Location: ../home/');
+    exit();
+}
 $message = "";
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $id = $_POST['id'];
     $name = trim($_POST['name']);
-
-    if (!empty($name) && preg_match("/^[a-zA-Z0-9\s]+$/", $name)) {
-        $stmt = $pdo->prepare("UPDATE Category SET name = :name, updated = CURRENT_DATE WHERE id = :id");
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':id', $id);
-
-        if ($stmt->execute()) {
-            $message = "Category updated successfully.";
-        } else {
-            $message = "Error: Could not update category.";
-        }
+    $cover = trim($_POST['cover']);
+    
+    // Prepare and execute the update statement
+    $stmt = $pdo->prepare("UPDATE category SET name = :name, cover_url = :cover WHERE id = :id");
+    $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':cover', $cover);
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+    
+    if ($stmt->execute()) {
+        header("Location: /category/$id");
+        exit();
     } else {
-        $message = "Please enter a valid category name (alphabetic characters, numbers, and spaces only).";
+        $message = "Error: Could not update Category.";
     }
 }
 ?>
@@ -33,30 +42,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Edit Category</title>
-    <script src="../essentials/script.js"></script>
-    <script src="script.js?55"></script>
-    <link rel="stylesheet" href="../css/normalize.css"> 
-    <link rel="stylesheet" href="../css/skeleton.css"> 
+    <title>Edit <?php echo htmlspecialchars($category['name']); ?></title>
+    <?php
+        @include '../essentials/global_style.php';
+        @include '../essentials/global_script.php';
+    ?>
 </head>
 <body>
     <?php
-    require '../essentials/header.php';
+        require '../essentials/header.php';
     ?>
-    <form method="post" action="edit.php" onsubmit="return validateForm('name', 'category')">
-        <h3>Edit Category</h3>
-        <label for="id">Select Category:</label>
-        <select id="id" name="id" onchange="populateName()" required>
-            <?php foreach ($categories as $category): ?>
-                <option value="<?php echo htmlspecialchars($category['id']); ?>">
-                    <?php echo htmlspecialchars($category['name']); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <label for="name">New Category Name:</label>
-        <input type="text" id="name" name="name" required>
-        <button type="submit">Update Category</button>
-        <?php echo $message; ?>
+    <form method="post" action="">
+        <h3>Edit <?php echo htmlspecialchars($category['name']); ?></h3>
+        <label for="name">Category Name:</label>
+        <input type="text" id="name" maxlength="255" name="name" pattern="[A-Za-z0-9\- ]+" value="<?php echo htmlspecialchars($category['name']); ?>" required>
+        <label for="cover">Category Logo Url:</label>
+        <input type="text" id="cover" maxlength="255" name="cover" value="<?php echo htmlspecialchars($category['cover_url']); ?>" required>
+        <button type="submit">Save Changes?</button>
+        <?php 
+            if (!empty($message)) {
+                echo '<p>'.$message.'</p>'; 
+            }
+        ?>
     </form>
     <?php
         include '../essentials/footer.php';

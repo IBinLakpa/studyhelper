@@ -1,2 +1,2 @@
 <?php
-header("Location: category/");
+    header('Location: home/');

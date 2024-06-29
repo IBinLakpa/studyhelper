@@ -1,32 +1,40 @@
 <?php
-// subject/add.php
-require '../essentials/db.php';
-require '../essentials/editor_access.php';
+// subject/add.php?id=XX
+// or subject/XX/add
 
+require '../essentials/db_access.php';
+require '../essentials/access_check.php';
+require '../essentials/admin_access.php';
+
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+// Fetch category
+$stmt = $pdo->prepare("SELECT name, id FROM category WHERE id = ?");
+$stmt->execute([$id]);
+$category = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Check if category exists
+if (!$category) {
+    header('Location: ../home/errorhere');
+    exit();
+}
 $message = "";
-$categories = [];
-
-// Fetch all categories
-$stmt = $pdo->query("SELECT id, name FROM Category ORDER BY name");
-$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = $_POST['name'];
-    $credit = $_POST['credit'];
-    $category_id = $_POST['category_id'];
-    $prerequisite_id = !empty($_POST['prerequisite_id']) ? $_POST['prerequisite_id'] : null;
-
-    // Insert new subject into the database
-    $stmt = $pdo->prepare("INSERT INTO Subject (name, credit, category_id, prerequisite_id,  updated) VALUES (:name, :credit, :category_id, :prerequisite_id, CURDATE())");
+    $name = trim($_POST['name']);
+    $level = trim($_POST['level']);
+    
+    // Prepare and execute the insert statement
+    $stmt = $pdo->prepare("INSERT INTO subject (name, level, categoryId) VALUES (:name, :level, :categoryId)");
     $stmt->bindParam(':name', $name);
-    $stmt->bindParam(':credit', $credit);
-    $stmt->bindParam(':category_id', $category_id);
-    $stmt->bindParam(':prerequisite_id', $prerequisite_id);
-
+    $stmt->bindParam(':level', $level);
+    $stmt->bindParam(':categoryId', $id);
+    
     if ($stmt->execute()) {
-        $message = "Subject added successfully.";
+        $lastId = $pdo->lastInsertId();
+        header('Location: /subject/' . $lastId);
+        exit();
     } else {
-        $message = "Error: Could not add subject.";
+        $message = "Error: Could not add Subject.";
     }
 }
 ?>
@@ -36,49 +44,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <title>Add Subject</title>
-    <script src="../essentials/script.js?554"></script>
-    <script src="script.js"></script>
-    <link rel="stylesheet" href="../css/normalize.css"> 
-    <link rel="stylesheet" href="../css/skeleton.css"> 
+    <style rel="stylesheet" href="../style/global.css"></style>
+    <?php
+        @include '../essentials/global_style.php';
+        @include '../essentials/global_script.php';
+    ?>
 </head>
 <body>
     <?php
         require '../essentials/header.php';
     ?>
-    <form method="post" action="add.php" onsubmit="return validateForm('name', 'subject')">
-        <h3>Add Subject</h3>
-        <label for="category_id">Select Category:</label>
-        <select id="category_id" name="category_id"  required>
-            <option value="" selected disabled hidden>Select Category</option>
-            <?php foreach ($categories as $category): ?>
-                <option value="<?php echo htmlspecialchars($category['id']); ?>">
-                    <?php echo htmlspecialchars($category['name']); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
+    <form method="post" action="">
+        <h3>Add Subject to <?php echo htmlspecialchars($category['name']); ?></h3>
         <label for="name">Subject Name:</label>
-        <input type="text" id="name" name="name" required>
-        <label for="credit">Credits:</label>
-        <input type="number" step="1" min="1" max="5" id="credit" name="credit" required>
-        <label for="prerequisite_category_id">Select Prerequisite Category:</label>
-        <select id="prerequisite_category_id" name="prerequisite_category_id" onchange="getSubjectList('prerequisite_id', this.value)">
-            <option value="" selected disabled hidden>Select a category</option>
-            <?php foreach ($categories as $category): ?>
-                <option value="<?php echo htmlspecialchars($category['id']); ?>">
-                    <?php echo htmlspecialchars($category['name']); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <label for="prerequisite_id">Select Prerequisite Subject:</label>
-        <select id="prerequisite_id" name="prerequisite_id">
-            <option value="" selected disabled hidden>Select Subject</option>
-            <!-- This option will be populated dynamically using JavaScript -->
-            </select>        
-        <button type="submit">Add Subject</button>
-        <?php echo $message; ?>
+        <input type="text" id="name" maxlength="255" name="name" pattern="[A-Za-z0-9\- ]+" required>
+        <label for="code">Subject Code:</label>
+        <input type="text" id="code" maxlength="30" name="code" pattern="[A-Za-z0-9\- ]+" required>
+        <label for="credit">Subject Credit:</label>
+        <input type="num" id="credit" max="5" min="1" name="credit" pattern="[A-Za-z0-9\- ]+" required>
+        
+        <button type="submit">Save Subject</button>
+        <?php 
+            if (!empty($message)) {
+                echo '<p>' . htmlspecialchars($message) . '</p>'; 
+            }
+        ?>
     </form>
     <?php
-        require '../essentials/footer.php';
+        include '../essentials/footer.php';
     ?>
 </body>
 </html>
