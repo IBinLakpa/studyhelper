@@ -1,76 +1,137 @@
 <?php
-// relatedquestion/index.php
-require '../essentials/db.php';
-require '../essentials/editor_access.php';
+// relatedquestion/XX or relatedquestion/?id=XX
+require '../essentials/db_access.php';
+require '../essentials/access_check.php';
 
-if (!isset($_GET['id'])) {
-    header("Location: ../essentials/404.php");
+$id = (int)$_GET['id'];
+
+// Fetch section details
+$stmt = $pdo->prepare("SELECT name,body,chapter_id FROM section WHERE id = ?");
+$stmt->execute([$id]);
+$section = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Check if section exists
+if (!$section) {
+    header('Location: ../home/');
     exit();
 }
 
-$section_id = $_GET['id'];
+//question initialization
+$page=isset($_GET['page'])?(int)$_GET['id']:1;
+$limit=10;
+$offset = ($page - 1) * $limit;
 
-// Fetch related questions
-$stmt = $pdo->prepare("
-    SELECT q.* 
-    FROM question_relation qr
-    JOIN questions q ON qr.question_id = q.id
-    WHERE qr.section_id = ?
-");
-$stmt->execute([$section_id]);
+// Fetch relatedquestion
+$stmt = $pdo->prepare("SELECT question_id, q, a, created, updated FROM section_questions WHERE section_id = ? ");
+$stmt->execute([$id]);
 $questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-if (empty($questions)) {
-    header("Location: ../essentials/404.php");
-    exit();
-}
-?>
+// Fetch other sections of the subject
+$stmt = $pdo->prepare("SELECT id, name FROM section WHERE chapter_id = ? AND id != ?");
+$stmt->execute([$section['chapter_id'], $id]);
+$sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Related Questions</title>
-    <link rel="stylesheet" href="../css/normalize.css">
-    <link rel="stylesheet" href="../css/skeleton.css">
-    <script src="../essentials/view.js"></script>
-</head>
-<body>
-    <?php require '../essentials/header.php'; ?>
-    <div class="content">
-        <h1>Related Questions</h1>
-            <?php foreach ($questions as $question): ?>
-                <h3>
-                    <a href="../question/index.php?id=<?php echo $question['id']; ?>" class="bb">
-                        >>
-                    </a>
-                    <span class="bb">
-                        <?php echo htmlspecialchars($question['question']); ?>
-                    </span>
-                    <?php if (1 == 1):?>
-                        <span style="align-self:right; width:auto">
-                            <a href="../question/edit.php?id=<?php echo $question['id']; ?>">
-                                <img src="../images/edit.svg" class="toggle" alt="Edit">
+// Fetch chapter details
+$stmt = $pdo->prepare("SELECT * FROM chapter_subject WHERE id = ?");
+$stmt->execute([$section['chapter_id']]);
+$chapter = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Left sidebar options
+$left_sidebar_options = '
+    <aside class="sidebar-left main">
+        <h4>Similar Sections:</h4>
+';
+
+if ($sections) {
+    $left_sidebar_options .= '
+        <ul>
+    ';
+    foreach ($sections as $index => $sect) {
+        $left_sidebar_options .= '
+            <li>
+                <a href="chapter/' . $sect['id'] . '">' . htmlspecialchars($sect['name']) . '</a>
+            </li>
+        ';
+    }
+    $left_sidebar_options .= '
+        </ul>
+    ';
+}
+
+$left_sidebar_options .= '
+    </aside>
+';
+
+// Right sidebar options (admin access)
+$right_sidebar_options = '';
+if ($admin_access) {
+    $right_sidebar_options = '
+        <aside class="sidebar-right main">
+            <a href="relatedquestion/add/' . $id . '" title="Add More Related Questions">
+                <i class="fa-solid fa-circle-plus"></i>
+            </a>
+        </aside>';
+}
+
+$title = htmlspecialchars($section['name']);
+$form = false;
+$editor = false;
+$banner = true;
+
+// Main article function
+function main_article() {
+    global $section, $questions, $id, $chapter;
+
+    $main = '
+        <article class="main">';
+    
+
+    $main .= '
+            <a href="category/' . htmlspecialchars($chapter['category_id']) . '">' . htmlspecialchars($chapter['category_name']) . '</a>
+            >>
+            <a href="subject/' . htmlspecialchars($chapter['subject_id']) . '">' . htmlspecialchars($chapter['subject_name']) . '</a>
+            >>
+            <a href="chapter/' . htmlspecialchars($chapter['id']) . '">' . htmlspecialchars($chapter['name']) . '</a>
+            >>
+            <a href="chapter/' . htmlspecialchars($chapter['id']) .'#'. htmlspecialchars($id) . '">' . htmlspecialchars($section['name']) . '</a>
+            <hr>
+            <h3>' . htmlspecialchars($section['name']) . '</h3>
+            <div class="content">' . htmlspecialchars($section['body']) . '</div>
+            <hr>';
+
+    if ($questions) {
+        $main .= '
+            <br/>';
+
+        foreach ($questions as $index =>  $question) {
+            $main .= '
+                <details class="section">
+                    <summary><h4>'. ($index+1) .': '. htmlspecialchars($question['q']) . '</h4></summary>
+                    <div class="content">
+                        ' . htmlspecialchars($question['a']) . '
+                        <span class="side_content">
+                            <a href="section/edit/' . $id . '" title="Edit Section">
+                                <i class="fa-solid fa-pen-to-square"></i>
                             </a>
-                            <a href="../question/delete.php?id=<?php echo $question['id']; ?>" onclick="return confirm('Are you sure you want to delete this question?');">
-                                <img src="../images/delete.svg" class="toggle" alt="Delete">
-                            </a>
+                            <span>
+                                # ' . htmlspecialchars($question['question_id']) . '
+                            </span>
                         </span>
-                    <?php endif; ?>
-                </h3>
-                    <div>
-                        <img src="../images/arrow.svg" class="toggle" onclick="toggleDisplay('answer_<?php echo $question['id']?>', this)">
-                        Answer:
                     </div>
-                    <div id="answer_<?php echo $question['id']?>" class="spoiler">
-                        <p class="bbcode">
-                            <?php echo htmlspecialchars($question['answer']); ?>
-                        </p>
-                    </div>
-                    <hr>
-            <?php endforeach; ?>
-    </div>
-    <?php require '../essentials/footer.php'; ?>
-</body>
-</html>
+                    <span class="side_content">
+                        <a href="relatedquestion/' . $id . '" title="Edit Section">Related Questions</a>
+                    </span>
+                </details>';
+        }
+
+    } else {
+        $main .= '<p>No sections in this chapter</p>';
+    }
+
+    $main .= '</article>';
+
+    return $main;
+}
+
+require '../essentials/default.php';
+?>

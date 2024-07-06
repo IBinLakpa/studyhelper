@@ -1,139 +1,160 @@
 <?php
-// section/index.php
-require '../essentials/db.php';
+// chapter/XX or chapter/?id=XX
+require '../essentials/db_access.php';
+require '../essentials/access_check.php';
 
-if (!isset($_GET['id'])) {
-    header("Location: ../essentials/404.php");
-    exit();
-}
+$id = (int)$_GET['id'];
 
-$chapter_id = $_GET['id'];
-
-// Fetch the current chapter details
-$stmt = $pdo->prepare("SELECT * FROM chapter WHERE id = ?");
-$stmt->execute([$chapter_id]);
+// Fetch chapter details
+$stmt = $pdo->prepare("SELECT * FROM chapter_subject WHERE id = ?");
+$stmt->execute([$id]);
 $chapter = $stmt->fetch(PDO::FETCH_ASSOC);
 
+// Check if chapter exists
 if (!$chapter) {
-    header("Location: ../essentials/404.php");
+    header('Location: ../home/');
     exit();
 }
 
-// Fetch the sections for this chapter, ordered by order_no
-$stmt = $pdo->prepare("SELECT * FROM section WHERE chapter_id = ? ORDER BY order_no");
-$stmt->execute([$chapter_id]);
-$sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Fetch all chapters for the sidebar
-$stmt = $pdo->prepare("SELECT id, name, order_no FROM chapter WHERE subject_id = ? ORDER BY order_no");
+// Fetch other chapters of the subject
+$stmt = $pdo->prepare("SELECT id, name FROM chapter WHERE subject_id = ?");
 $stmt->execute([$chapter['subject_id']]);
 $chapters = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch subject details for breadcrumb
-$stmt = $pdo->prepare("SELECT id, name, category_id FROM subject WHERE id = ?");
-$stmt->execute([$chapter['subject_id']]);
-$subject = $stmt->fetch(PDO::FETCH_ASSOC);
+// Fetch sections for the chapter
+$stmt = $pdo->prepare("SELECT * FROM section WHERE chapter_id = ? ORDER BY order_no");
+$stmt->execute([$id]);
+$sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch category details for breadcrumb
-$stmt = $pdo->prepare("SELECT id, name FROM category WHERE id = ?");
-$stmt->execute([$subject['category_id']]);
-$category = $stmt->fetch(PDO::FETCH_ASSOC);
-?>
+// Initialize variables for navigation
+$current_position = -1;
+$prev_chapter = null;
+$next_chapter = null;
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chapter <?php echo htmlspecialchars($chapter['order_no']); ?>: <?php echo htmlspecialchars($chapter['name']); ?></title>
-    <link rel="stylesheet" href="../css/normalize.css?2">
-    <link rel="stylesheet" href="../css/skeleton.css?33">
-    <style>
-        /* styles.css */
-summary {
-    cursor: pointer;
-    user-select: none;
-    list-style:none;
-    display: flex;
-    justify-content: space-between;
+// Left sidebar options
+$left_sidebar_options = '
+    <aside class="sidebar-left main">
+        <h4>Table of Contents:</h4>
+';
+
+if ($chapters) {
+    $left_sidebar_options .= '<ol>';
+    foreach ($chapters as $index => $chap) {
+        if ($chap['id'] == $id) {
+            $current_position = $index;
+        } 
+        $left_sidebar_options .= '
+            <li>
+                <a href="chapter/' . $chap['id'] . '">' . htmlspecialchars($chap['name']) . '</a>
+            </li>
+        ';
+    }
+    $left_sidebar_options .= '</ol>';
+
+    // Determine previous and next chapters
+    if ($current_position > 0) {
+        $prev_chapter = $chapters[$current_position - 1];
+    }
+    if ($current_position < count($chapters) - 1) {
+        $next_chapter = $chapters[$current_position + 1];
+    }
 }
 
-summary::after {
-    content: '▼';
-    position: static;
-    transition: transform 400ms;
-    height: fit-content;
+$left_sidebar_options .= '</aside>';
+
+// Right sidebar options (admin access)
+$right_sidebar_options = '';
+if ($admin_access) {
+    $right_sidebar_options = '
+        <aside class="sidebar-right main">
+            <a href="section/add/' . $id . '" title="Add Section to this Chapter">
+                <i class="fa-solid fa-circle-plus"></i>
+            </a>
+            <a href="chapter/edit/' . $id . '" title="Edit Chapter">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+            <a href="chapter/delete/' . $id . '" title="Delete Chapter">
+                <i class="fa-solid fa-trash"></i>
+            </a>
+        </aside>';
 }
 
-.rotated::after {
-    transform: rotate(-180deg);
-}
-summary *{
-    display: inline-block;
-    height: fit-content;
-    margin: 0;
-}
+$title = htmlspecialchars($chapter['name']);
+$form = false;
+$editor = false;
+$banner = true;
 
+// Main article function
+function main_article() {
+    global $chapter, $sections, $id, $prev_chapter, $next_chapter, $current_position;
 
-    </style>
-    <script src="https://cdn.jsdelivr.net/gh/jbowyersmith/bbcode.js/bbcode.js"></script>
-    <script src="../essentials/view.js"></script>
-    <script id="MathJax-script" async src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    $main = '
+        <article class="main">
+            <div class="navigation-links">';
+    
+    if ($prev_chapter) {
+        $main .= '<a href="chapter/' . htmlspecialchars($prev_chapter['id']) . '" class="previous" title="' . htmlspecialchars($prev_chapter['name']) . '">&laquo;Previous</a>';
+    }
 
-</head>
-<body>
-    <?php require '../essentials/header.php'; ?>
-    <div class="content">
-        <a href="../category/<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></a> >>
-        <a href="../s/<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></a> >>
-        <?php echo htmlspecialchars($chapter['name']); ?>
-        <hr>
-        <h1>Chapter <?php echo htmlspecialchars($chapter['order_no']); ?>: <?php echo htmlspecialchars($chapter['name']); ?></h1>
-        <hr>
-        <span style="text-align:right;display: block;">Credit Hour: <?php echo htmlspecialchars($chapter['creditHour']); ?></span>
-        <div>
+    if ($next_chapter) {
+        $main .= '<a href="chapter/' . htmlspecialchars($next_chapter['id']) . '" class="next" title="' . htmlspecialchars($next_chapter['name']) . '">Next&raquo;</a>';
+    }
+
+    $main .= '
+            </div>
+            <hr>
+            <a href="category/' . htmlspecialchars($chapter['category_id']) . '">' . htmlspecialchars($chapter['category_name']) . '</a>
+            >>
+            <a href="subject/' . htmlspecialchars($chapter['subject_id']) . '">' . htmlspecialchars($chapter['subject_name']) . '</a>
+            >>
+            <a href="chapter/' . htmlspecialchars($id) . '">' . htmlspecialchars($chapter['name']) . '</a>
+            <hr>
+            <div class="banner">
+                <img src="' . htmlspecialchars($chapter['cover_url']) . '" alt="' . htmlspecialchars($chapter['category_name']) . '">
+                <div class="banner_text">
+                    <h2>Chapter ' . ($current_position+1) .': '. htmlspecialchars($chapter['name']) . '</h2>
+                    <span class="side_content">Credit Hours: ' . htmlspecialchars($chapter['credit_hour']) . '</span>
+                    <span class="side_content"># ' . htmlspecialchars($id) . '</span>
+                </div>
+            </div>
+            <hr>
             <h3>Introduction:</h3>
-            <p class="bbcode">
-                <?php echo htmlspecialchars($chapter['intro']); ?>
-            </p>
-        </div>
-        <div class="toc">
-            <h3>Table of Contents</h3>
-            <ul>
-                <?php foreach ($sections as $section): ?>
-                    <li>
-                        <a href="#section_<?php echo $section['id']; ?>">
-                            <?php echo htmlspecialchars($chapter['order_no']) . '.' . htmlspecialchars($section['order_no']); ?> <?php echo htmlspecialchars($section['name']); ?>
-                        </a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-        <?php if (count($sections) > 0): ?>
-            <?php foreach ($sections as $section): ?>
-                <hr>
-                <details class="section" id="section_<?php echo $section['id']; ?>">
-                    <summary>
-                        <span>
-                            <h4>
-                                <?php echo htmlspecialchars($chapter['order_no']) . '.' . htmlspecialchars($section['order_no']); ?> 
-                            </h4>
-                            <h4>
-                                <?php echo htmlspecialchars($section['name']); ?>
-                            </h4>
-                        </span>
-                    </summary>
+            <div class="content">' . htmlspecialchars($chapter['intro']) . '</div>
+            <hr>';
+
+    if ($sections) {
+        $main .= '
+            <br/>';
+
+        foreach ($sections as $index =>  $section) {
+            $main .= '
+                <details class="section" id="' . htmlspecialchars($section['id']) . '">
+                    <summary><h4>'.($current_position+1).'.'. ($index+1) .': '. htmlspecialchars($section['name']) . '</h4></summary>
                     <div class="content">
-                            <?php echo htmlspecialchars($section['body']); ?>
-                        <a style="text-align:right;display: block;"href="../relatedquestion/?id=<?php echo $section['id']; ?>">Related Questions</a>
+                        ' . htmlspecialchars($section['body']) . '
+                        <span class="side_content">
+                            <a href="section/edit/' . $id . '" title="Edit Section">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <span>
+                                # ' . htmlspecialchars($section['id']) . '
+                            </span>
+                        </span>
                     </div>
-                </details>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <p>No sections available for this chapter.</p>
-        <?php endif; ?>
-    </div>
-    <?php require '../essentials/footer.php'; ?>
-</body>
-</html>
+                    <span class="side_content">
+                        <a href="relatedquestion/' . $id . '" title="Edit Section">Related Questions</a>
+                    </span>
+                </details>';
+        }
+
+    } else {
+        $main .= '<p>No sections in this chapter</p>';
+    }
+
+    $main .= '</article>';
+
+    return $main;
+}
+
+require '../essentials/default.php';
+?>

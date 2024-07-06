@@ -1,66 +1,76 @@
 <?php
-// questions/index.php
-require '../essentials/db.php';
-require '../essentials/editor_access.php';
+// question/XX or question/?id=XX
+require '../essentials/db_access.php';
+require '../essentials/access_check.php';
 
-if (!isset($_GET['id'])) {
-    header("Location: ../essentials/404.php");
-    exit();
-}
+$id = (int)$_GET['id']; // Ensure ID is an integer for security
 
-$id = $_GET['id'];
-
-// Fetch the specific question
-$stmt = $pdo->prepare("SELECT * FROM questions WHERE id = ?");
+// Fetch question details
+$stmt = $pdo->prepare("SELECT q, a, total_likes, created, updated FROM question WHERE id = ?");
 $stmt->execute([$id]);
 $question = $stmt->fetch(PDO::FETCH_ASSOC);
 
+// Check if question exists
 if (!$question) {
-    header("Location: ../essentials/404.php");
+    header('Location: ../home/');
     exit();
 }
-?>
+$left_sidebar_options='
+    <aside class="sidebar-left main">
+        something
+    </aside>
+';
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Question</title>
-    <link rel="stylesheet" href="../css/normalize.css?45">
-    <link rel="stylesheet" href="../css/skeleton.css">
-    <script src="../essentials/view.js"></script>
-</head>
-<body>
-    <?php require '../essentials/header.php'; ?>
-    <div class="content">
-        <h3>
-            <?php echo htmlspecialchars($question['question']); ?>
-            <?php if (1 == 1):?>
-                <span style="align-self:right; width:auto">
-                    <a href="edit.php?id=<?php echo $question['id']; ?>">
-                        <img src="../images/edit.svg" class="toggle" alt="Edit">
-                    </a>
-                    <a href="delete.php?id=<?php echo $question['id']; ?>" onclick="return confirm('Are you sure you want to delete this question?');">
-                        <img src="../images/delete.svg" class="toggle" alt="Delete">
-                    </a>
+// Right sidebar options (admin access)
+$right_sidebar_options = '';
+if ($admin_access) {
+    $right_sidebar_options = '
+        <aside class="sidebar-right main">
+            <a href="question/edit/' . $id . '" title="Edit Question">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+            <a href="question/delete/' . $id . '" title="Delete Question">
+                <i class="fa-solid fa-trash"></i>
+            </a>
+        </aside>';
+}
+
+$title = 'Question Details';
+$form = false;
+$editor = false;
+$banner = true;
+
+// Main article function
+function main_article() {
+    global $question, $id;
+    $update='';
+    if($question['updated']){
+        $update='<span class="side_content">Updated: ' . htmlspecialchars($question['updated'], ENT_QUOTES) . '</span>';
+    }
+
+    $main = '
+        <article class="main">
+            <a href="question/all">All Questions</a>
+            <hr>
+            <div>
+                <h2>Question</h2>
+                <p class="content">' . nl2br(htmlspecialchars($question['q'], ENT_QUOTES)) . '</p>
+                <h2>Answer</h2>
+                <p class="content">' . nl2br(htmlspecialchars($question['a'], ENT_QUOTES)) . '</p>
+                <span class="side_content">
+                    <span class="side_content">
+                        # : ' . htmlspecialchars($id, ENT_QUOTES) . '
+                    </span>
+                    <span class="side_content">
+                        Created: ' . htmlspecialchars($question['created'], ENT_QUOTES) . '
+                    </span>
+                    '.$update.'
                 </span>
-            <?php endif; ?>
-        </h3>
-        <span style="text-align:right;font-size:smaller;display:block;margin:none;">#<?php echo htmlspecialchars($question['id']); ?></span>
-        
-        <hr>
-        <h3>
-            <img src="../images/arrow.svg" class="toggle" onclick="toggleDisplay('answer', this)">
-            Answer
-        </h3>
-        <div id="answer" class="spoiler">
-            <p class="bbcode">
-                <?php echo htmlspecialchars($question['answer']); ?>
-            </p>
-        </div>
-        <hr>
-    </div>
-    <?php require '../essentials/footer.php'; ?>
-</body>
-</html>
+            </div>
+        </article>';
+
+    return $main;
+}
+
+require '../essentials/default.php';
+?>

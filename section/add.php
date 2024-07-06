@@ -1,101 +1,78 @@
 <?php
-// section/add.php
-require '../essentials/db.php';
-require '../essentials/editor_access.php';
+// section/add.php?id=XX or section/add/XX
+require '../essentials/db_access.php';
+require '../essentials/access_check.php';
+require '../essentials/edit_access.php';
+
+$id = (int)$_GET['id'];
+
+// Fetch chapter
+$stmt = $pdo->prepare("SELECT name FROM chapter WHERE id = ?");
+$stmt->execute([$id]);
+$chapter = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Check if chapter exists
+if (!$chapter) {
+    header('Location: ../home/');
+    exit();
+}
 
 $message = "";
-$categories = [];
 
-// Fetch all categories
-$stmt = $pdo->query("SELECT id, name FROM Category ORDER BY name");
-$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Handle form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $section = [
-        'name' => $_POST['name'],
-        'order_no' => $_POST['order_no'],
-        'body' => $_POST['body'],
-        'chapter_id' => $_POST['chapter_id']
-    ];
+    $name = trim($_POST['name']);
+    $order_no = (int)$_POST['order_no'];
+    $body = trim($_POST['body']);
 
-    // Insert section details into the database
-    $stmt = $pdo->prepare("INSERT INTO Section (name, order_no, body, chapter_id, created) VALUES (:name, :order_no, :body, :chapter_id, CURDATE())");
-    $stmt->execute($section);
+    // Prepare and execute the insert statement
+    $stmt = $pdo->prepare("INSERT INTO section (name, order_no, chapter_id, body) VALUES (:name, :order_no, :chapter_id, :body)");
+    $stmt->bindParam(':name', $name);
+    $stmt->bindParam(':body', $body);
+    $stmt->bindParam(':order_no', $order_no, PDO::PARAM_INT);
+    $stmt->bindParam(':chapter_id', $id, PDO::PARAM_INT);
 
-    $message = "Section added successfully.";
+    if ($stmt->execute()) {
+        header('Location: /chapter/' . $id);
+        exit();
+    } else {
+        $message = "Error: Could not add section.";
+    }
 }
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Add Section</title>
-    <link rel="stylesheet" href="../css/normalize.css">
-    <link rel="stylesheet" href="../css/skeleton.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/css/froala_editor.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/css/froala_style.min.css">
-    <style>
-        .fr-wrapper {
-            min-height: 200px !important;
-        }
-    </style>
-</head>
-<body>
-    <?php
-        require '../essentials/header.php';
-    ?>
-    <form method="post" action="add.php">
-        <h3>Add Section</h3>
-        <label for="category_id">Select Category:</label>
-        <select id="category_id" name="category_id" onchange="getSubjectList('subject_id', this.value)">
-            <option value="" selected disabled hidden>Select Category</option>
-            <?php foreach ($categories as $category): ?>
-                <option value="<?php echo $category['id']; ?>">
-                    <?php echo htmlspecialchars($category['name']); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <label for="subject_id">Select Subject:</label>
-        <select id="subject_id" name="subject_id" onchange="getChapterList('chapter_id', this.value)">
-            <option value="" selected disabled hidden>Select Subject</option>
-        </select>
-        <label for="chapter_id">Select Chapter:</label>
-        <select id="chapter_id" name="chapter_id">
-            <option value="" selected disabled hidden>Select Chapter</option>
-        </select>
-        <label for="name">Section Name:</label>
-        <input type="text" id="name" name="name" maxlength="255" required>
-        <label for="order_no">Order No:</label>
-        <input type="number" id="order_no" step="1" max="500" min="0" name="order_no" required>
-        <label for="body">Body:</label>
-        <textarea id="editor" name="body" required></textarea>
-        <button type="submit">Add Section</button>
-        <?php echo $message; ?>
-    </form>
-    <?php
-        require '../essentials/footer.php';
-    ?>
-</body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/js/froala_editor.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/4.0.0/js/languages/en.js"></script>
-<script>
-    $(document).ready(function() {
-        $('#editor').froalaEditor({
-            toolbarButtons: [
-                'bold', 'italic', 'underline', 'strikeThrough', '|',
-                'fontFamily', 'fontSize', 'color', '|',
-                'align', 'formatOL', 'formatUL', '|',
-                'insertLink', 'insertImage', 'insertVideo', 'insertFile', 'insertTable', '|',
-                'html'
-            ],
-            heightMin: 200,
-            iconsTemplate: 'font_awesome_5',
-            htmlExecuteScripts: false
-        });
-    });
-</script>
-</html>
+$title = 'Add Section';
+$banner = false;
+$form = true;
+$editor = true;
+$edit_options = '';
+$right_sidebar_options = '';
+$left_sidebar_options = '';
+
+function main_article() {
+    global $message, $chapter;
+    echo '
+    <form class="main" method="post" action="">
+        <div class="default">
+            <h3>Add Section to ' . htmlspecialchars($chapter['name'], ENT_QUOTES) . '</h3>
+        </div>
+        <div class="default">
+            ' . htmlspecialchars($message, ENT_QUOTES) . '
+        </div>
+        <div class="default">
+            <input type="text" id="name" maxlength="255" name="name" pattern="[A-Za-z0-9\- ]+" required>
+            <label for="name">Section Name:</label>
+        </div>
+        <div class="default">
+            <input type="number" id="order_no" name="order_no" min="1" max="255" step="1" required>
+            <label for="order_no">Order Number:</label>
+        </div>
+        <div class="editor">
+            <label for="body">Main Body:</label>
+            <textarea id="body" name="body" required></textarea>
+        </div>
+        <div class="default">
+            <button type="submit">Save</button>
+        </div>
+    </form>';
+}
+
+require '../essentials/default.php';

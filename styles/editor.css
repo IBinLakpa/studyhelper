@@ -1,0 +1,49 @@
+/*editor styling start here*/
+body.form form.main textarea {
+    width: 100%;
+    border: none;
+    padding: 1em;
+    min-height: auto;
+    font-size: 1em;
+  }
+  form.main div.editor {
+    margin-top: 1.5em;
+    border: 2px solid black;
+    border-radius: 5px;
+  }
+  form.main div.editor .tool {
+    display: flex;
+    flex-flow: row;
+    border: solid black;
+    border-width: 0 2px 2px 0;
+  }
+  form.main div.editor .tool:last-child {
+    border: 0;
+    border-bottom: 2px solid black;
+  }
+  .toolbar {
+    background: red;
+  }
+  form.main div.editor label {
+    transform: translateY(-80%);
+    font-size: 0.8em;
+    border: solid black;
+    border-width: 0 2px;
+    z-index: 2;
+  }
+  .tool-list {
+    display: flex;
+    flex-flow: row wrap;
+    list-style: none;
+    padding: 0;
+  }
+  .tool--btn {
+    display: block;
+    border: none;
+    padding: 0.5rem;
+    font-size: 20px;
+  }
+  .tool--btn:hover,
+  .tool--btn:hover i {
+    background: #eaeaea;
+  }

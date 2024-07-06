@@ -1,89 +1,143 @@
 <?php
-// index.php
-require '../essentials/db.php';
-require '../essentials/editor_access.php';
+    // subject/XX or subject/?id=XX
+    require '../essentials/db_access.php';
+    require '../essentials/access_check.php';
 
-if (!isset($_GET['id'])) {
-    header("Location: ../essentials/404.php");
-    exit();
-}
+    $id = $_GET['id'];
+    
+    // Fetch subject details
+    $stmt = $pdo->prepare("SELECT * FROM subject_category WHERE id = ?");
+    $stmt->execute([$id]);
+    $subject = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$subject_id = $_GET['id'];
+    // Check if subject exists
+    if (!$subject) {
+        header('Location: ../home/');
+        exit();
+    }
+    
+    // Fetch similar subjects
+    $stmt = $pdo->prepare("SELECT id, name FROM subject WHERE category_id = ? AND id != ? LIMIT 5");
+    $stmt->execute([$subject['category_id'], $id]);
+    $subjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Fetch chapters for the subject
+    $stmt = $pdo->prepare("SELECT * FROM chapter WHERE subject_id = ? ORDER BY order_no");
+    $stmt->execute([$id]);
+    $chapters = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch the current subject details
-$stmt = $pdo->prepare("SELECT * FROM subject WHERE id = ?");
-$stmt->execute([$subject_id]);
-$subject = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Left sidebar options
+    $left_sidebar_options = '
+        <aside class="sidebar-left main">
+            <h4>Other subjects</h4>
+        '
+    ;
 
-if (!$subject) {
-    header("Location: ../essentials/404.php");
-    exit();
-}
-
-// Fetch the chapters for this subject, ordered by order_no
-$stmt = $pdo->prepare("SELECT * FROM chapter WHERE subject_id = ? ORDER BY order_no");
-$stmt->execute([$subject_id]);
-$chapters = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Fetch all subjects for the sidebar
-$stmt = $pdo->prepare("SELECT id, name, category_id FROM subject ORDER BY name");
-$stmt->execute();
-$subjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Fetch category details for breadcrumb
-$stmt = $pdo->prepare("SELECT id, name FROM category WHERE id = ?");
-$stmt->execute([$subject['category_id']]);
-$category = $stmt->fetch(PDO::FETCH_ASSOC);
-?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subject <?php echo htmlspecialchars($subject['name']); ?></title>
-    <link rel="stylesheet" href="../css/normalize.css">
-    <link rel="stylesheet" href="../css/skeleton.css">
-    <script src="../essentials/view.js"></script>
-</head>
-<body>
-    <?php require '../essentials/header.php'; ?>
-    <div class="content">
-        <a href="../category/index.php?id=<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></a> >>
-        <?php echo htmlspecialchars($subject['name']); ?>
-        <h1>Subject: <?php echo htmlspecialchars($subject['name']); ?></h1>
-        <hr>
-        <span style="text-align:right;display: block;">Credit: <?php echo htmlspecialchars($subject['credit']); ?></span>
-        <h3>Table of Content:</h3>
-        <div class="toc">
+    if ($subjects) {
+        $left_sidebar_options .='
             <ul>
-                <?php foreach ($chapters as $chapter): ?>
-                    <li>
-                        <a href="#chapter_<?php echo $chapter['id']; ?>">
-                            <?php echo htmlspecialchars($chapter['order_no']); ?>. <?php echo htmlspecialchars($chapter['name']); ?>
-                        </a>
-                    </li>
-                <?php endforeach; ?>
+        ';
+        foreach ($subjects as $subj) {
+            $left_sidebar_options .= '
+                <li>
+                    <a href="subject/' . $subj['id'] . '">
+                        ' . htmlspecialchars($subj['name']) . '
+                    </a>
+                </li>';
+        }
+        $left_sidebar_options .='
             </ul>
-        </div>
-        <?php if (count($chapters) > 0): ?>
-            <?php foreach ($chapters as $chapter): ?>
-                <div class="chapter" id="chapter_<?php echo $chapter['id']; ?>">
-                    <h3>
-                        <img src="../images/arrow.png" class="toggle" onclick="toggleDisplay('<?php echo 'chapter_intro_'.htmlspecialchars($chapter['id']); ?>',this)">
-                        <a href="../c/<?php echo htmlspecialchars($chapter['id']); ?>">
-                            <?php echo htmlspecialchars($chapter['order_no']); ?>. <?php echo htmlspecialchars($chapter['name']); ?>
-                        </a>
-                    </h3>
-                    <div class="spoiler spoiler_content" id="<?php echo 'chapter_intro_'.htmlspecialchars($chapter['id']); ?>">
-                        <div><?php echo htmlspecialchars($chapter['intro']); ?></div>
+        ';
+    } else {
+        $left_sidebar_options .= 'No other subjects';
+    }
+
+    
+    if($subject['prerequisite_id']){
+        // Fetch prerequisite subject
+        $stmt = $pdo->prepare("SELECT id,name FROM subject_category WHERE id = ?");
+        $stmt->execute([$id]);
+        $prerequisite = $stmt->fetch(PDO::FETCH_ASSOC);
+        $left_sidebar_options .= '
+        <hr/>
+            Prerequisite:
+            <a href="subject/' . $prerequisite['id'] . '">
+                ' . htmlspecialchars($prerequisite['name']) . '
+            </a>
+        ';
+    }
+
+    $left_sidebar_options .= '
+        </aside>
+    ';
+
+    // Right sidebar options (admin access)
+    $right_sidebar_options = '';
+    if ($admin_access) {
+        $right_sidebar_options = '
+            <aside class="sidebar-right main">
+                <a href="chapter/add/' . $id . '" title="Add Chapter to this Subject">
+                    <i class="fa-solid fa-circle-plus"></i>
+                </a>
+                <a href="subject/edit/' . $id . '" title="Edit Subject">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </a>
+                <a href="subject/delete/' . $id . '" title="Delete Subject">
+                    <i class="fa-solid fa-trash"></i>
+                </a>
+            </aside>';
+    }
+
+    $title = $subject['category_name'];
+    $form = false;
+    $editor = false;
+    $banner = true;
+
+    // Main article function
+    function main_article() {
+        global $subject, $chapters, $id;
+        
+        $main = '
+            <article class="main">
+                <a href="category/' . $subject['category_id'] . '">' . htmlspecialchars($subject['category_name']) . '</a>
+                >>
+                <a href="subject/' . $id . '">' . htmlspecialchars($subject['name']) . '</a>
+                
+                <hr>
+                <div class="banner">
+                    <img src="' . htmlspecialchars($subject['cover_url']) . '" alt="' . htmlspecialchars($subject['category_name']) . '">
+                    <div class="banner_text">
+                        <h2>' . htmlspecialchars($subject['name']) . '</h2>
+                        <span class="side_content">Credits: ' . htmlspecialchars($subject['credits']) . '</span>
+                        <span class="side_content">' . htmlspecialchars($subject['code']) . '</span>
+                        <span class="side_content"># ' . htmlspecialchars($id) . '</span>
                     </div>
                 </div>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <p>No chapters available for this subject.</p>
-        <?php endif; ?>
-    </div>
-    <?php require '../essentials/footer.php'; ?>
-</body>
-</html>
+                <hr>';
+    
+        if ($chapters) {
+            $main .= '
+                <h3>Chapters</h3>
+                <ol>';
+    
+            foreach ($chapters as $chapter) {
+                $main .= '
+                    <li>
+                        <a href="chapter/' . htmlspecialchars($chapter['id']) . '">' . htmlspecialchars($chapter['name']) . '</a>
+                        <span class="side_content"># ' . htmlspecialchars($chapter['id']) . '</span>
+                    </li>';
+            }
+    
+            $main .= '
+                </ol>';
+        } else {
+            $main .= '<p>No chapters in this subject</p>';
+        }
+    
+        $main .= '
+            </article>';
+    
+        return $main;
+    }
+    
+    require '../essentials/default.php';

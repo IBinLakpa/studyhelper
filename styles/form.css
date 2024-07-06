@@ -1,0 +1,53 @@
+/*form start here*/
+body.form form.main {
+  grid-column: 1 / -1;
+  margin: 1em auto;
+  width: clamp(70%, auto, 95%);
+}
+form.main > div {
+  margin: 0.7em;
+  position: relative;
+}
+
+form.main > div > * {
+  width: auto;
+  align-items: center;
+}
+form.main > div label {
+  position: absolute;
+  left: 0.5em;
+  padding: 0 0.3em;
+  transform: translateY(50%);
+  transition: all 0.2s linear;
+  border: solid rgba(0, 0, 0, 0);
+  border-width: 0 2px;
+  z-index: 1;
+}
+/*form.main div input:required ~ label::before{
+  content:' *';
+  color:red;
+incase i want somethings later;
+}*/
+form.main > div.default :not(label) {
+  outline: none;
+  padding: 0.7rem;
+  border: 2px solid black;
+  border-radius: 5px;
+  width: 100%;
+  font-size: 1em;
+}
+form.main > div.default h3 {
+  text-align: center;
+  font-size: 1.5rem;
+  border: solid rgba(0, 0, 0, 0);
+  word-spacing: 0.25rem;
+  text-transform: uppercase;
+}
+form.main > div.default *:focus ~ label,
+form.main > div.default *:valid ~ label,
+form.main > div.default select ~ label  {
+  transform: translateY(-55%);
+  font-size: 0.8em;
+  border: solid black;
+  border-width: 0 2px;
+}
